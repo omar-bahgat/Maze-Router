@@ -27,7 +27,6 @@ def print_input_file_info():
 
 
 def floodfill(start, end, visited_global, allowed_start):
-    
     queue = deque([(start[0], start[1], start[2])])  # (layer, x, y)
 
     grid = {
@@ -42,12 +41,10 @@ def floodfill(start, end, visited_global, allowed_start):
     while queue:
         layer, x, y = queue.popleft()
 
-        # skip if already visited in this flood
         if (layer, x, y) in visited_local:
             continue
         visited_local.add((layer, x, y))
 
-        # skip if globally blocked and not the allowed start
         if (layer, x, y) in visited_global and (allowed_start is None or (layer, x, y) != allowed_start):
             continue
         if (x, y) in obstacles:
@@ -55,7 +52,6 @@ def floodfill(start, end, visited_global, allowed_start):
 
         current_cost = grid[layer][x][y]
 
-        # reached end
         if (x, y) == (end[1], end[2]):
             if layer != end[0]:
                 if grid[end[0]][x][y] > current_cost + VIA_COST:
@@ -63,8 +59,7 @@ def floodfill(start, end, visited_global, allowed_start):
                     parent[(end[0], x, y)] = (layer, x, y)
                     queue.append((end[0], x, y))
                 continue
-                
-            # reconstruct path
+
             path = [(layer, x, y)]
             while (layer, x, y) in parent:
                 layer, x, y = parent[(layer, x, y)]
@@ -72,9 +67,8 @@ def floodfill(start, end, visited_global, allowed_start):
             path.reverse()
             return grid[end[0]][end[1]][end[2]], path
 
-        # Move in preferred directions
-        if layer == 1:  # M1 = horizontal
-            for dx, dy in [(0, 1), (0, -1)]:
+        if layer == 1:
+            for dx, dy in [(-1, 0), (1, 0)]:
                 nx, ny = x + dx, y + dy
                 if 0 <= nx < ROWS and 0 <= ny < COLS and (layer, nx, ny) not in visited_global and (nx, ny) not in obstacles:
                     if grid[layer][nx][ny] > current_cost + 1:
@@ -82,14 +76,13 @@ def floodfill(start, end, visited_global, allowed_start):
                         parent[(layer, nx, ny)] = (layer, x, y)
                         queue.append((layer, nx, ny))
 
-            # Switch to M2
             if grid[2][x][y] > current_cost + VIA_COST:
                 grid[2][x][y] = current_cost + VIA_COST
                 parent[(2, x, y)] = (1, x, y)
                 queue.append((2, x, y))
 
-        elif layer == 2:  # M2 = vertical
-            for dx, dy in [(1, 0), (-1, 0)]:
+        elif layer == 2:
+            for dx, dy in [(0, -1), (0, 1)]:
                 nx, ny = x + dx, y + dy
                 if 0 <= nx < ROWS and 0 <= ny < COLS and (layer, nx, ny) not in visited_global and (nx, ny) not in obstacles:
                     if grid[layer][nx][ny] > current_cost + 1:
@@ -97,13 +90,13 @@ def floodfill(start, end, visited_global, allowed_start):
                         parent[(layer, nx, ny)] = (layer, x, y)
                         queue.append((layer, nx, ny))
 
-            # Switch to M1
             if grid[1][x][y] > current_cost + VIA_COST:
                 grid[1][x][y] = current_cost + VIA_COST
                 parent[(1, x, y)] = (2, x, y)
                 queue.append((1, x, y))
 
-    return -1, []  # No path found
+    return -1, []
+
 
 def route_nets():
     global routed_nets 
