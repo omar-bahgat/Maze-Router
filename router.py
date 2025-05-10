@@ -155,7 +155,7 @@ def write_output(output_file_path):
 def main():
     
     input_file = input("Enter input filename: ").strip()
-    input_file_path = f"tests/{input_file}"
+    input_file_path = f"tests_2/{input_file}"
 
     parse_input_file(input_file_path)
     print_input_file_info()
@@ -163,7 +163,7 @@ def main():
     route_nets()
 
     base_name = input_file.split('input')[-1]  
-    output_file_path = f"tests/output{base_name}"
+    output_file_path = f"tests_2/output{base_name}"
 
     write_output(output_file_path)  
 
