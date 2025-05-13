@@ -1,0 +1,17 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Executables
+*.exe
+*.out
+*.app
+
+.DS_Store
+
+.ipynb_checkpoints/
