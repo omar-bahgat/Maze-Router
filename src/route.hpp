@@ -8,8 +8,6 @@
 
 using namespace std;
 
-extern map<int, vector<tuple<int, int, int>>> routed_paths; // net_id -> path
-
 // node with lowest cost so far
 struct Node {
     int cost, layer, x, y;

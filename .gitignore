@@ -12,6 +12,6 @@
 *.out
 *.app
 
+router
 .DS_Store
-
 .ipynb_checkpoints/
