@@ -42,10 +42,17 @@ This Python script provides a simple visualization tool for routing results in g
   ```
 ##  Usage
 - Edit the visualize_2.py file and modify the following lines at the bottom to point to your input/output files:
-  - input_file = r"tests/<input_file_name>.txt"
-  - output_file = r"tests/<output_file_name>.txt"
+
+  ```
+  input_file = r"tests/<input_file_name>.txt"
+  ```
+  ```
+  output_file = r"tests/<output_file_name>.txt"
+  ```
 - Then run the script:
-  - python visualize_2.py
+  ```
+   python visualize_2.py
+  ```
 - Each layer is visualized in a separate subplot
 - Input pins are shown in light green
 - Output pins are shown in darker green
