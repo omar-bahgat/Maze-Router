@@ -6,7 +6,79 @@
 
 using namespace std;
 
+bool ENABLE_NET_REORDERING = false;
+
 map<int, vector<tuple<int, int, int>>> routed_paths;
+vector<pair<int, vector<tuple<int, int, int>>>> routed_net_list;
+
+int calculate_manhattan_distance(const vector<tuple<int, int, int>>& pins) {
+    int maxDist = 0;
+    for (size_t i = 0; i < pins.size(); i++) {
+        auto [l1, x1, y1] = pins[i];
+        for (size_t j = i + 1; j < pins.size(); j++) {
+            auto [l2, x2, y2] = pins[j];
+            int dist = abs(x1 - x2) + abs(y1 - y2);
+            if (dist > maxDist) maxDist = dist;
+        }
+    }
+    return maxDist;
+}
+
+int estimate_net_cost(const vector<tuple<int, int, int>>& pins) {
+    const int penalty = 10;  // Uniform penalty for via, non-pref, and obstacle
+
+    int cost = 0;
+    for (size_t i = 0; i + 1 < pins.size(); i++) {
+        auto [l1, x1, y1] = pins[i];
+        auto [l2, x2, y2] = pins[i + 1];
+
+        cost += abs(x1 - x2) + abs(y1 - y2);
+
+        if (l1 != l2) {
+            cost += penalty;  // via penalty
+        }
+        else if ((x1 != x2) && (y1 != y2)) {
+            cost += penalty;  // non-preferred turn penalty
+        }
+
+        bool obstacle_found = false;
+        int minX = min(x1, x2), maxX = max(x1, x2);
+        int minY = min(y1, y2), maxY = max(y1, y2);
+
+        for (int layer = 0; layer < 2 && !obstacle_found; layer++) {
+            for (int x = minX; x <= maxX && !obstacle_found; x++) {
+                for (int y = minY; y <= maxY; y++) {
+                    if (grid[layer][x][y] == -1) {
+                        cost += penalty;
+                        obstacle_found = true;
+                    }
+                }
+            }
+        }
+    }
+    return cost;
+}
+
+int net_priority(const pair<int, vector<tuple<int, int, int>>>& net) {
+    int est_cost = estimate_net_cost(net.second);
+    int manhattan = calculate_manhattan_distance(net.second);
+    int pin_count = (int)net.second.size();
+
+    // Weighted sum: estimated cost * 3 + manhattan * 2 + pin count * 1
+    return est_cost * 3 + manhattan * 2 + pin_count;
+}
+
+vector<pair<int, vector<tuple<int, int, int>>>> reorderNets(
+    const map<int, vector<tuple<int, int, int>>>& nets) {
+
+    vector<pair<int, vector<tuple<int, int, int>>>> sorted(nets.begin(), nets.end());
+
+    sort(sorted.begin(), sorted.end(), [](const auto& a, const auto& b) {
+        return net_priority(a) > net_priority(b);
+        });
+
+    return sorted;
+}
 
 vector<tuple<int, int, int>> reconstructPath(
     const vector<vector<vector<tuple<int, int, int>>>>& prev,
@@ -16,11 +88,9 @@ vector<tuple<int, int, int>> reconstructPath(
     vector<tuple<int, int, int>> path;
     int l = endLayer, x = endX, y = endY;
 
-    // Backtrack from end to start
-    tuple<int, int, int> lastAdded = { -1, -1, -1 }; // To track last added element
+    tuple<int, int, int> lastAdded = { -1, -1, -1 };
 
     while (l != -1 && !(l == startLayer && x == startX && y == startY)) {
-        // Avoid adding consecutive duplicates
         tuple<int, int, int> current = { l + 1, x, y };
         if (current != lastAdded) {
             path.emplace_back(current);
@@ -44,7 +114,6 @@ vector<tuple<int, int, int>> reconstructPath(
 
     return {};
 }
-
 
 vector<tuple<int, int, int>> routeNet(tuple<int, int, int> src, tuple<int, int, int> dest) {
     auto [startLayer, startX, startY] = src;
@@ -71,7 +140,6 @@ vector<tuple<int, int, int>> routeNet(tuple<int, int, int> src, tuple<int, int, 
 
         if (curr.cost > dist[curr.layer][curr.x][curr.y]) continue;
 
-        // check if we reached the destination
         if (curr.layer == endLayer && curr.x == endX && curr.y == endY) {
             return reconstructPath(prev, startLayer, startX, startY,
                 curr.layer, curr.x, curr.y);
@@ -83,7 +151,6 @@ vector<tuple<int, int, int>> routeNet(tuple<int, int, int> src, tuple<int, int, 
             if (grid[curr.layer][nx][ny] == -1) continue;
 
             int moveCost = 1;
-            // check if the move is preferred or not 
             if ((curr.layer + 1 == 1 && dy != 0) || (curr.layer + 1 == 2 && dx != 0)) {
                 moveCost = NON_PREF_COST;
             }
@@ -96,7 +163,6 @@ vector<tuple<int, int, int>> routeNet(tuple<int, int, int> src, tuple<int, int, 
             }
         }
 
-        // via handling
         int newLayer = 1 - curr.layer;
         if (grid[newLayer][curr.x][curr.y] != -1) {
             int newCost = curr.cost + VIA_COST;
@@ -112,24 +178,32 @@ vector<tuple<int, int, int>> routeNet(tuple<int, int, int> src, tuple<int, int, 
 
 void processNets() {
 
-    // loop over all nets
-    for (auto& [net_id, pins] : nets) {
+    vector<pair<int, vector<tuple<int, int, int>>>> net_list;
+
+    if (ENABLE_NET_REORDERING) {
+        net_list = reorderNets(nets);
+        cout << "- Net reordering enabled.\n";
+    }
+    else {
+        net_list.assign(nets.begin(), nets.end());
+        cout << "- Net reordering disabled.\n";
+    }
+
+    routed_net_list = net_list;
+
+    for (auto& [net_id, pins] : net_list) {
         vector<tuple<int, int, int>> full_path;
 
-        // loop over all pins in the net
         for (size_t i = 0; i < pins.size() - 1; i++) {
-            // find path from pin i to pin i+1
             auto segment = routeNet(pins[i], pins[i + 1]);
 
             auto start = segment.begin();
             auto end = segment.end();
 
-            // skip first element to avoid overlap
             if (i > 0 && !segment.empty() && !full_path.empty()) {
                 start = segment.begin() + 1;
             }
 
-            // mark visited nodes as obstacles
             for (auto it = start; it != end; it++) {
                 auto [layer, x, y] = *it;
                 grid[layer - 1][x][y] = -1;
@@ -142,42 +216,50 @@ void processNets() {
     }
 }
 
-
 void showRoutingInfo() {
-    for (const auto& [net_id, path] : routed_paths) {
+    cout << "════════════════════════════════════════════\n";
+
+    for (const auto& [net_id, _] : routed_net_list) {
+        const auto& path = routed_paths[net_id];
+
+        cout << "Net: " << "net" << net_id << "\n";
+
+        if (path.empty()) {
+            cout << "No route found\n";
+            cout << "════════════════════════════════════════════\n";
+            continue;
+        }
+
         int vias = 0, pref = 0, non_pref = 0;
-
         for (size_t i = 1; i < path.size(); i++) {
-            auto [cl, cx, cy] = path[i];            // current 
-            auto [pl, px, py] = path[i - 1];        // previous
-
+            auto [cl, cx, cy] = path[i];
+            auto [pl, px, py] = path[i - 1];
             if (cl != pl) vias++;
             else {
-                bool vertical = (cy != py);  // if y has changed, the move is vertical
-                bool m1 = (cl == 1);  // check if the current layer is M1 
+                bool vertical = (cy != py);
+                bool m1 = (cl == 1);
                 (m1 != vertical) ? pref++ : non_pref++;
             }
         }
 
         int total_cost = vias * VIA_COST + pref + non_pref * NON_PREF_COST;
 
-        cout << "════════════════════════════════════════════\n";
-        cout << "Net: " << net_id << "\n";
         cout << "Vias: " << vias << " | ";
         cout << "Preferred: " << pref << " | ";
         cout << "Non-pref: " << non_pref << "\n";
         cout << "Total cost: " << total_cost << "\n";
         cout << "════════════════════════════════════════════\n";
     }
-}
 
+}
 
 void writeOutput(const string& filename) {
     int i = filename.find('_'), j = filename.rfind('.');
     string filepath = "../Tests/output_" + filename.substr(i + 1, j - i - 1) + ".txt";
     ofstream out(filepath);
 
-    for (const auto& [net_id, path] : routed_paths) {
+    for (const auto& [net_id, _] : routed_net_list) {
+        const auto& path = routed_paths[net_id];
         out << "net" << net_id;
         for (const auto& cell : path) {
             out << " (" << get<0>(cell) << ", " << get<1>(cell) << ", " << get<2>(cell) << ")";

@@ -7,6 +7,8 @@
 
 using namespace std;
 
+extern bool ENABLE_NET_REORDERING;
+
 extern const int INF;
 extern int ROWS, COLS, VIA_COST, NON_PREF_COST;
 
