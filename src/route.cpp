@@ -25,7 +25,7 @@ int calculate_manhattan_distance(const vector<tuple<int, int, int>>& pins) {
 }
 
 int estimate_net_cost(const vector<tuple<int, int, int>>& pins) {
-    const int penalty = 10;  // Uniform penalty for via, non-pref, and obstacle
+    const int penalty = 10;
 
     int cost = 0;
     for (size_t i = 0; i + 1 < pins.size(); i++) {
@@ -38,7 +38,7 @@ int estimate_net_cost(const vector<tuple<int, int, int>>& pins) {
             cost += penalty;  // via penalty
         }
         else if ((x1 != x2) && (y1 != y2)) {
-            cost += penalty;  // non-preferred turn penalty
+            cost += penalty;  // non-pref  penalty
         }
 
         bool obstacle_found = false;
@@ -64,7 +64,7 @@ int net_priority(const pair<int, vector<tuple<int, int, int>>>& net) {
     int manhattan = calculate_manhattan_distance(net.second);
     int pin_count = (int)net.second.size();
 
-    // Weighted sum: estimated cost * 3 + manhattan * 2 + pin count * 1
+    // weighted sum
     return est_cost * 3 + manhattan * 2 + pin_count;
 }
 
