@@ -5,19 +5,25 @@ import re
 from matplotlib.widgets import Button
 matplotlib.use('Qt5Agg')
 
+#Function to parse the input file in order to get the grid size, obstacles, and starting/ending pins
 def parse_input_file(file_path):
+    #loop over lines and put into list
     with open(file_path, 'r') as f:
         lines = [line.strip() for line in f if line.strip()]
+    #grid size is taken from line 0 (first 2 entries separated by a comma)
     grid_line = lines[0]
     grid_width, grid_height, *_ = map(int, grid_line.split(','))
+
     obs_lines, pin_lines = [], []
+    #append lines starting with OBS to obstacles list, others to pins
     for line in lines[1:]:
         if line.startswith("OBS"):
             obs_lines.append(line)
         else:
             pin_lines.append(line)
+    #extract actual obstacle locations from the string
     obstacles = [tuple(map(int, re.search(r'\((\d+),\s*(\d+),\s*(\d+)\)', l).groups())) for l in obs_lines]
-
+    #extract actual pin locations and nets from the string
     pins, net_names = [], []
     for line in pin_lines:
         tokens = line.split()
@@ -25,29 +31,35 @@ def parse_input_file(file_path):
         coords = re.findall(r'\((\d+),\s*(\d+),\s*(\d+)\)', line)
         pins.append([tuple(map(int, c)) for c in coords])
     return (grid_width, grid_height), obstacles, pins, net_names
-
+#function to prase output
 def parse_output_file(filename):
     output_nets = []
+    #loop over output nets, extract them from string and add them to list
     with open(filename, 'r') as f:
         for line in f:
             coords = re.findall(r'\((\d+),\s*(\d+),\s*(\d+)\)', line)
             output_nets.append([tuple(map(int, c)) for c in coords])
     return output_nets
-
+#fucntion to run the visualizer
 def visualize(grid_size, obstacles, input_nets, output_nets, net_names=None):
+    #get width and height
     grid_width, grid_height = grid_size
+    #extracts layers from list.
     all_layers = sorted(set(p[0] for net in output_nets for p in net))
+    #color map
     cmap = plt.colormaps.get_cmap('tab20')
 
     #fig, axs = plt.subplots(1, len(all_layers), figsize=(12 * len(all_layers), 12), dpi=150)
+    #plot sizing
     fig, axs = plt.subplots(1, len(all_layers), figsize=(8 * len(all_layers), 8), layout="constrained")
-
+    #flatten axs if it is one layer
     if len(all_layers) == 1:
         axs = [axs]
+    #Map layer number to subplot axis
     layer_to_ax = dict(zip(all_layers, axs))
-
+    #Track of what's drawn on each layer
     layer_artists = {layer: [] for layer in all_layers}
-
+    #Draw gridlines over each layer's subplot
     def draw_grid(ax):
         ax.grid(False)
         xlim = ax.get_xlim()
@@ -58,11 +70,12 @@ def visualize(grid_size, obstacles, input_nets, output_nets, net_names=None):
         ax.set_xticks(range(int(xlim[0]), int(xlim[1]) + 1, step))
         ax.set_yticks(range(int(ylim[0]), int(ylim[1]) + 1, step))
         ax.grid(True, linestyle=':', linewidth=0.8)
-
+    #Setup each layer subplot
     for layer, ax in layer_to_ax.items():
         ax.set_title(f"Layer {layer}")
         ax.set_aspect('equal')
         ax.set_facecolor('#f0f0f0')
+        #Draw outer boundary
         ax.add_patch(patches.Rectangle(
             (0, 0), grid_width, grid_height,
             edgecolor='black', facecolor='white', linewidth=2, zorder=0
@@ -70,14 +83,14 @@ def visualize(grid_size, obstacles, input_nets, output_nets, net_names=None):
         ax.set_xlim(-1, grid_width + 1)
         ax.set_ylim(-1, grid_height + 1)
         draw_grid(ax)
-
+    #Draw obstacles (black squares)
     for (layer, ox, oy) in obstacles:
         ax = layer_to_ax.get(layer)
         if ax:
             r = patches.Rectangle((ox, oy), 1, 1, color='black', zorder=1)
             ax.add_patch(r)
             layer_artists[layer].append(r)
-
+    #Draw the routed paths for each net
     for net_idx, net in enumerate(output_nets):
         color = cmap(net_idx)
         net_label = net_names[net_idx] if net_names else f"net{net_idx+1}"
@@ -89,7 +102,7 @@ def visualize(grid_size, obstacles, input_nets, output_nets, net_names=None):
             ax.add_patch(r)
             layer_artists[layer].append(r)
             layers_labeled.add((net_label, layer))
-
+    #Draw vias
     used_via_layers = set()
     for net_idx, net in enumerate(output_nets):
         net_color = cmap(net_idx)
@@ -108,7 +121,7 @@ def visualize(grid_size, obstacles, input_nets, output_nets, net_names=None):
                         layer_artists[l].append(r)
                         if label:
                             used_via_layers.add(l)
-
+    #Draw pins
     used_light_pin_labels_per_layer = set()
     used_other_pin_labels_per_layer = set()
     for net_idx, net in enumerate(input_nets):
@@ -133,7 +146,7 @@ def visualize(grid_size, obstacles, input_nets, output_nets, net_names=None):
                     ax.add_patch(r)
                     layer_artists[layer].append(r)
                     used_other_pin_labels_per_layer.add(label_key)
-
+    #reset zoom and pan
     def set_initial_limits():
         for ax_ in axs:
             ax_.set_xlim(-1, grid_width + 1)
@@ -141,21 +154,10 @@ def visualize(grid_size, obstacles, input_nets, output_nets, net_names=None):
             draw_grid(ax_)
             ax_.figure.canvas.draw_idle()
 
-    def draw_grid(ax):
-        ax.grid(False)
-        xlim = ax.get_xlim()
-        ylim = ax.get_ylim()
-        x_range = xlim[1] - xlim[0]
-        y_range = ylim[1] - ylim[0]
-        step = max(1, int(min(x_range, y_range) // 20))
-        ax.set_xticks(range(int(xlim[0]), int(xlim[1]) + 1, step))
-        ax.set_yticks(range(int(ylim[0]), int(ylim[1]) + 1, step))
-        ax.grid(True, linestyle=':', linewidth=0.8)
-
     for ax in axs:
         set_initial_limits()
         draw_grid(ax)
-
+    #Zoom with mouse scroll
     def on_scroll(event):
         base_scale = 1.2
         if event.xdata is None or event.ydata is None:
@@ -174,11 +176,11 @@ def visualize(grid_size, obstacles, input_nets, output_nets, net_names=None):
             ax.set_ylim([ydata - new_height * rely, ydata + new_height * (1 - rely)])
             draw_grid(ax)
         fig.canvas.draw_idle()
-
+    #Pan handling
     def on_press(event):
         for ax in axs:
             ax._pan_start = (event.x, event.y, ax.get_xlim(), ax.get_ylim())
-
+    #On motion, calculate new limits
     def on_motion(event):
         if event.x is None or event.y is None:
             return
@@ -194,16 +196,17 @@ def visualize(grid_size, obstacles, input_nets, output_nets, net_names=None):
             ax.set_ylim(ylim[0] - dy * scale_y, ylim[1] - dy * scale_y)
             draw_grid(ax)
         fig.canvas.draw_idle()
+    #Reset grid on reset button click
     def on_reset(event):
         set_initial_limits()
         
-
+    #On mouse release, clear pan state
     def on_release(event):
         for ax in axs:
             ax._pan_start = None
     reset_ax = plt.axes([0.45, 0.01, 0.1, 0.04])  # x, y, width, height in figure coords
     reset_button = Button(reset_ax, 'Reset View', hovercolor='0.975')
-    # Connect only zoom and pan
+    #Connect mouse and button events
     reset_button.on_clicked(on_reset)
     fig.canvas.mpl_connect('scroll_event', on_scroll)
     fig.canvas.mpl_connect('button_press_event', on_press)
@@ -219,7 +222,7 @@ def visualize(grid_size, obstacles, input_nets, output_nets, net_names=None):
     #fig.legend(legend_handles.values(), legend_handles.keys(), loc='center right', fontsize='small', borderaxespad=0.1)
     fig.legend(legend_handles.values(), legend_handles.keys(), loc='upper right', fontsize='small', bbox_to_anchor=(1.0, 1.0),borderaxespad=0.1)
 
-
+    #adjust layout to fit
     fig.tight_layout(rect=[0, 0.1, 1, 0.95])
     plt.show()
 
