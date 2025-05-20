@@ -52,7 +52,7 @@ void readInputFile(const string& filename) {
     char ch;
     ss >> ROWS >> ch >> COLS >> ch >> VIA_COST >> ch >> NON_PREF_COST;
 
-    grid = vector<vector<vector<int>>>(2, vector<vector<int>>(ROWS, vector<int>(COLS, INF)));
+    grid = vector<vector<vector<int>>>(2, vector<vector<int>>(ROWS, vector<int>(COLS, 0)));
 
     while (getline(file, line)) {
         if (beginsWith(line, "OBS")) {
