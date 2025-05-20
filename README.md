@@ -1,11 +1,15 @@
 # Maze-Router
 
 ## Input File Format
+  ```
   <Grid_Size_x>,<Grid_Size_y>,<Via_Cost>,<Non_Prefered_Cost>
   OBS (<layer>, <x>, <y>)
   net<number> (<layer>, <x>, <y>) (<layer>, <x>, <y>)
+  ```
 ## Output File Format
+  ```
   net<number> (<layer>, <x>, <y>) (<layer>, <x>, <y>)
+  ```
 # Visualizer
 
 This Python script provides a simple visualization tool for routing results in grid-based routing problems. It displays a grid layout with obstacles, pins, and the routing paths between them.
