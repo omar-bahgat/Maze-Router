@@ -229,8 +229,8 @@ def visualize(grid_size, obstacles, input_nets, output_nets, net_names=None):
             
 
 if __name__ == "__main__":
-    input_file = r"tests/input_bonus_1.txt"
-    output_file = r"tests/output_bonus_1.txt"
+    input_file = r"tests/input_100x100_2.txt"   
+    output_file = r"tests/output_100x100_2.txt"
     # input_file = r"tests_2\input_5x5_2.txt"
     # output_file = r"tests_2\output_5x5_2.txt"
     grid_size, obstacles, input_nets, net_names = parse_input_file(input_file)
